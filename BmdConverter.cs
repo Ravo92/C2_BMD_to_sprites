@@ -1,7 +1,6 @@
 ﻿using C2_BMD_to_sprites.Decoders;
 using C2_BMD_to_sprites.Encoder;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.PixelFormats;
 using System.Buffers.Binary;
 
@@ -312,7 +311,7 @@ namespace C2_BMD_to_sprites
                         for (int x = 0; x < width; x++)
                         {
                             Rgba32 p = img[x, y];
-                            mask[x] = p.A != 0;
+                            mask[x] = img[x, y].A >= 128;
                         }
 
                         uint packed2 = BmdRowEncoder.EncodeType2MaskRow(mask, width, pixelStream, out uint indent2);
@@ -339,14 +338,14 @@ namespace C2_BMD_to_sprites
                         {
                             Rgba32 p = img[x, y];
 
-                            if (p.A == 0)
+                            if (p.A < 8)
                             {
                                 rowA[x] = 0;
                                 rowB[x] = 0;
                                 continue;
                             }
 
-                            rowA[x] = MapPixelToPaletteIndex(p, paletteForFrame, exactColorToIndex, allowNearestFallback: true);
+                            rowA[x] = MapPixelToPaletteIndex(p, paletteForFrame, exactColorToIndex, allowNearestFallback: false);
                             rowB[x] = p.A;
                         }
 
@@ -371,13 +370,13 @@ namespace C2_BMD_to_sprites
                     {
                         Rgba32 p = img[x, y];
 
-                        if (p.A == 0)
+                        if (p.A < 128)
                         {
                             row[x] = 0;
                             continue;
                         }
 
-                        row[x] = MapPixelToPaletteIndex(p, paletteForFrame, exactColorToIndex, allowNearestFallback: true);
+                        row[x] = MapPixelToPaletteIndex(p, paletteForFrame, exactColorToIndex, allowNearestFallback: false);
                     }
 
                     uint packed1 = BmdRowEncoder.EncodeType1Row(row, width, 0, pixelStream, out uint indent1);
