@@ -1,4 +1,4 @@
-﻿using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace C2_BMD_to_sprites
 {
@@ -30,12 +30,12 @@ namespace C2_BMD_to_sprites
             string context = Path.Combine(palettesDirectory, "Context.pcx");
             string fontWhite = Path.Combine(palettesDirectory, "font_white.pcx");
 
-            Rgba32[] palFrame = PaletteDefaults.LoadPcxPaletteWithTransparentZero(frame);
-            Rgba32[] palBgNormal = PaletteDefaults.LoadPcxPaletteWithTransparentZero(bgNormal);
-            Rgba32[] palPapyrus = PaletteDefaults.LoadPcxPaletteWithTransparentZero(papyrus);
-            Rgba32[] palIconsLeft = PaletteDefaults.LoadPcxPaletteWithTransparentZero(iconsLeft);
-            Rgba32[] palContext = PaletteDefaults.LoadPcxPaletteWithTransparentZero(context);
-            Rgba32[] palFontWhite = PaletteDefaults.LoadPcxPaletteWithTransparentZero(fontWhite);
+            Rgba32[] palFrame = PaletteDefaults.LoadPcxPalette(frame);
+            Rgba32[] palBgNormal = PaletteDefaults.LoadPcxPalette(bgNormal);
+            Rgba32[] palPapyrus = PaletteDefaults.LoadPcxPalette(papyrus);
+            Rgba32[] palIconsLeft = PaletteDefaults.LoadPcxPalette(iconsLeft);
+            Rgba32[] palContext = PaletteDefaults.LoadPcxPalette(context);
+            Rgba32[] palFontWhite = PaletteDefaults.LoadPcxPalette(fontWhite);
 
             return new GuiPaletteSet(palFrame, palBgNormal, palPapyrus, palIconsLeft, palContext, palFontWhite);
         }

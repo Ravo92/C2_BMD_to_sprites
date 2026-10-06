@@ -1,100 +1,43 @@
-﻿using System.Buffers.Binary;
+namespace C2_BMD_to_sprites.Encoder;
 
-namespace C2_BMD_to_sprites.Encoder
+internal static class BmdWriter
 {
-    internal static class BmdWriter
+    internal static byte[] Write(BmdFile file)
     {
-        internal static byte[] Write(BmdFrame[] frames, byte[] pixels, BmdRow[] rows)
+        if (file.Header.FrameCount != file.Frames.Length || file.Header.PackedByteCount != file.Pixels.Length || file.Header.LineCount != file.Rows.Length) throw new InvalidDataException("Header counts do not match the output buffers.");
+        using MemoryStream stream = new();
+        using BinaryWriter writer = new(stream);
+        writer.Write(1012u);
+        BmdHeader h = file.Header;
+        writer.Write(h.Version);
+        writer.Write(h.FirstBobId);
+        writer.Write(h.FrameCount);
+        writer.Write(h.PackedByteCount);
+        writer.Write(h.LineCount);
+        writer.Write(h.GeneratedLineCount);
+        writer.Write(h.EmptyLineCount);
+        writer.Write(h.ReusedLineCount);
+        if (file.Frames.Length != 0)
         {
-            ArgumentNullException.ThrowIfNull(frames);
-
-            ArgumentNullException.ThrowIfNull(pixels);
-
-            ArgumentNullException.ThrowIfNull(rows);
-
-            int sec1Len = checked(frames.Length * 24);
-            int sec2Len = pixels.Length;
-            int sec3Len = checked(rows.Length * 4);
-
-            int total =
-                4 + 8 + 4 + 4 + 4 + 4 + 4 + 4 + // global header
-                12 + sec1Len +                  // sec1
-                12 + sec2Len +                  // sec2
-                12 + sec3Len;                   // sec3
-
-            byte[] output = new byte[total];
-            Span<byte> span = output.AsSpan();
-            int o = 0;
-
-            WriteU32(span, ref o, 1012u);          // magic
-            WriteU64(span, ref o, 0ul);            // zero1
-
-            // These three are treated as "counts" in some dumps, but your reader trusts section_length.
-            // Still: fill with reasonable values (helps debugging).
-            WriteU32(span, ref o, checked((uint)frames.Length)); // sec1Noe
-            WriteU32(span, ref o, checked((uint)sec2Len));       // sec2Noe (bytes)
-            WriteU32(span, ref o, checked((uint)rows.Length));   // sec3Noe
-
-            WriteU32(span, ref o, 0u);             // unknown1
-            WriteU32(span, ref o, 0u);             // unknown2
-            WriteU32(span, ref o, 0u);             // zero2
-
-            // Section 1: frames
-            WriteSectionHeader(span, ref o, 1001u, 0u, checked((uint)sec1Len));
-            for (int i = 0; i < frames.Length; i++)
+            if (file.SectionVersions.Length != 3) throw new InvalidDataException("Expected three memory object versions.");
+            WriteSection(writer, file.SectionVersions[0], checked(file.Frames.Length * 24));
+            foreach (BmdFrame frame in file.Frames)
             {
-                BmdFrame f = frames[i];
-                WriteU32(span, ref o, f.Type);
-                WriteU32(span, ref o, f.Meta1);
-                WriteU32(span, ref o, f.Meta2);
-                WriteU32(span, ref o, f.Width);
-                WriteU32(span, ref o, f.Height);
-                WriteU32(span, ref o, f.RowOffsetInSec3);
+                writer.Write(frame.Type);
+                writer.Write(frame.XOffset);
+                writer.Write(frame.YOffset);
+                writer.Write(frame.Width);
+                writer.Write(frame.Height);
+                writer.Write(frame.FirstRowIndex);
             }
-
-            // Section 2: pixels
-            WriteSectionHeader(span, ref o, 1001u, 0u, checked((uint)sec2Len));
-            pixels.AsSpan().CopyTo(span.Slice(o, sec2Len));
-            o += sec2Len;
-
-            // Section 3: rows
-            WriteSectionHeader(span, ref o, 1001u, 0u, checked((uint)sec3Len));
-            for (int i = 0; i < rows.Length; i++)
-            {
-                BmdRow r = rows[i];
-
-                // Pack exactly like reader:
-                // indent = (packed >> 22) & 0x3FF
-                // off    = packed & 0x3FFFFF
-                uint packed = ((r.Indent & 0x3FFu) << 22) | (r.PixelStreamOffset & 0x3FFFFFu);
-                WriteU32(span, ref o, packed);
-            }
-
-            if (o != total)
-            {
-                throw new InvalidOperationException("Internal size mismatch while writing BMD.");
-            }
-
-            return output;
+            WriteSection(writer, file.SectionVersions[1], file.Pixels.Length);
+            writer.Write(file.Pixels);
+            WriteSection(writer, file.SectionVersions[2], checked(file.Rows.Length * 4));
+            foreach (BmdRow row in file.Rows) writer.Write(row.Packed);
         }
-
-        private static void WriteSectionHeader(Span<byte> dst, ref int o, uint magic, uint unknown, uint length)
-        {
-            WriteU32(dst, ref o, magic);
-            WriteU32(dst, ref o, unknown);
-            WriteU32(dst, ref o, length);
-        }
-
-        private static void WriteU32(Span<byte> dst, ref int o, uint value)
-        {
-            BinaryPrimitives.WriteUInt32LittleEndian(dst.Slice(o, 4), value);
-            o += 4;
-        }
-
-        private static void WriteU64(Span<byte> dst, ref int o, ulong value)
-        {
-            BinaryPrimitives.WriteUInt64LittleEndian(dst.Slice(o, 8), value);
-            o += 8;
-        }
+        writer.Write(file.TrailingData);
+        return stream.ToArray();
     }
+
+    private static void WriteSection(BinaryWriter writer, uint version, int size) { writer.Write(1001u); writer.Write(version); writer.Write(checked((uint)size)); }
 }
