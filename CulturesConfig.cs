@@ -8,6 +8,8 @@ namespace C2_BMD_to_sprites;
 // CStringArray lines use 01 for group names and 02 for command lines.
 internal static class CulturesConfig
 {
+    internal static bool Exists(string root, string relativePath) => File.Exists(Path.Combine(root, relativePath)) || File.Exists(Path.ChangeExtension(Path.Combine(root, relativePath), ".cif"));
+
     internal static List<CulturesConfigGroup> Read(string root, string relativePath)
     {
         string path = Path.Combine(root, relativePath);

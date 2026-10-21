@@ -5,16 +5,16 @@ namespace C2_BMD_to_sprites;
 
 internal static class CulturesPaletteDiscovery
 {
-    internal static string? Find(string inputPath)
+    internal static string? Find(string inputPath, string? generatedMapPath = null)
     {
         string? configured = Environment.GetEnvironmentVariable("CULTURES_GAME_DIR");
-        if (!string.IsNullOrWhiteSpace(configured)) return FindPalette(Path.GetFullPath(configured), Path.GetFileName(inputPath));
+        if (!string.IsNullOrWhiteSpace(configured)) return FindPalette(Path.GetFullPath(configured), inputPath, generatedMapPath);
         // Prefer a containing installation. For copied BMDs, verify the source
         // bytes before selecting one of several installed Cultures editions.
         foreach (string root in Ancestors(Path.GetDirectoryName(inputPath)!))
         {
             if (!IsGameRoot(root)) continue;
-            return FindPalette(root, Path.GetFileName(inputPath));
+            return FindPalette(root, inputPath, generatedMapPath);
         }
         byte[]? inputHash = null;
         foreach (string root in InstalledGames())
@@ -24,20 +24,24 @@ internal static class CulturesPaletteDiscovery
             using FileStream original = File.OpenRead(source);
             if (inputHash is null) { using FileStream input = File.OpenRead(inputPath); inputHash = SHA256.HashData(input); }
             if (!inputHash.AsSpan().SequenceEqual(SHA256.HashData(original))) continue;
-            string? palette = FindPalette(root, Path.GetFileName(inputPath));
+            string? palette = FindPalette(root, inputPath, generatedMapPath);
             if (palette is not null) return palette;
         }
         return null;
     }
 
-    private static string? FindPalette(string root, string name)
+    private static string? FindPalette(string root, string inputPath, string? generatedMapPath)
     {
         if (!IsGameRoot(root)) return null;
+        string name = Path.GetFileName(inputPath);
         if (name.Equals("ls_gui_window.bmd", StringComparison.OrdinalIgnoreCase))
         {
             string directory = Path.Combine(root, "data", "gui", "palettes");
             if (Directory.Exists(directory)) return directory;
         }
+        string? houseMap = CulturesHousePalettes.Create(root, inputPath, generatedMapPath);
+        if (houseMap is not null) return houseMap;
+        if (!CulturesConfig.Exists(root, "data/engine2d/inis/humans/jobgraphics.ini")) return null;
         List<CulturesConfigGroup> jobs = CulturesConfig.Read(root, "data/engine2d/inis/humans/jobgraphics.ini");
         HashSet<string> palettes = new(StringComparer.OrdinalIgnoreCase);
         foreach (CulturesConfigGroup group in jobs.Where(g => g.Name.Equals("jobbasegraphics", StringComparison.OrdinalIgnoreCase)))
@@ -52,15 +56,19 @@ internal static class CulturesPaletteDiscovery
         }
         // Different palette domains need per-frame mappings; do not guess one.
         if (palettes.Count != 1) return null;
-        List<CulturesConfigGroup> definitions = CulturesConfig.Read(root, "data/engine2d/inis/palettes/palettes.ini");
-        string? file = definitions.FirstOrDefault(g => g.Name.Equals("GfxPalette256", StringComparison.OrdinalIgnoreCase) && string.Equals(g.Value("editname"), palettes.Single(), StringComparison.OrdinalIgnoreCase))?.Value("gfxfile");
+        return ResolvePaletteFile(root, CulturesConfig.Read(root, "data/engine2d/inis/palettes/palettes.ini"), palettes.Single());
+    }
+
+    internal static string? ResolvePaletteFile(string root, List<CulturesConfigGroup> definitions, string palette)
+    {
+        string? file = definitions.FirstOrDefault(g => g.Name.Equals("GfxPalette256", StringComparison.OrdinalIgnoreCase) && string.Equals(g.Value("editname"), palette, StringComparison.OrdinalIgnoreCase))?.Value("gfxfile");
         if (file is null || Path.IsPathRooted(file)) return null;
         string fullPath = Path.GetFullPath(Path.Combine(root, file.Replace('\\', Path.DirectorySeparatorChar)));
         if (!fullPath.StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath)) return null;
         return fullPath;
     }
 
-    private static bool IsGameRoot(string root) => File.Exists(Path.Combine(root, "data/engine2d/inis/humans/jobgraphics.ini")) || File.Exists(Path.Combine(root, "data/engine2d/inis/humans/jobgraphics.cif"));
+    private static bool IsGameRoot(string root) => CulturesConfig.Exists(root, "data/engine2d/inis/humans/jobgraphics.ini") || CulturesConfig.Exists(root, "data/engine2d/inis/houses/houses.ini");
 
     private static IEnumerable<string> Ancestors(string directory)
     {

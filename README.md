@@ -8,11 +8,19 @@ Drag a single `.bmd` file onto `C2_BMD_to_sprites.exe`. It immediately exports t
 
 The equivalent command is `C2_BMD_to_sprites.exe "input.bmd"`. No output path or `decode` argument is needed.
 
-Colored sprites are named `input_000.png`; `input_000.indices.png` stores numeric indices and is not intended as a colored picture.
+Colored sprites are named `input_000.png`. In colored drag-and-drop exports, the numeric `input_000.indices.png` files live under `indices/`, keeping them out of the normal image view. Their paths are retained in the frame manifest. Raw template import also recognizes this subfolder. Explicit `decode` keeps its existing layout.
 
 Drag-and-drop checks `input.palettes.json`, then `input.pcx`, beside the BMD. Without these sidecars it reads palette assignments from a containing Cultures installation or a matching installed Steam edition. For copied BMDs, the installed source must match by SHA-256 before its configuration is used. `CULTURES_GAME_DIR` can explicitly select a game folder, including non-Steam installations. No game data is bundled or modified.
 
-Automatic game lookup currently covers human body/head managers with one unambiguous base palette, and the known GUI window rules. `cr_hum_body_00.bmd` resolves to `test_human_00.pcx` through the installed INI/CIF configuration. This produces the base artwork colors; in-game random clothing, skin and player-color patches can vary and are not inferred from BMD pixels. Multi-palette managers still require an explicit JSON map. If no assignment is found, the converter retains lossless index PNGs and reports that a palette is needed. Existing explicit `decode`/`encode` commands remain available.
+Automatic game lookup covers human body/head managers with one unambiguous base palette, house managers and the known GUI window rules. `cr_hum_body_00.bmd` resolves to `test_human_00.pcx` through the installed INI/CIF configuration. This produces the base artwork colors; in-game random clothing, skin and player-color patches can vary and are not inferred from BMD pixels. Other multi-palette managers still require an explicit JSON map. If no assignment is found, the converter retains lossless index PNGs and reports that a palette is needed. Existing explicit `decode`/`encode` commands remain available.
+
+For houses, the converter reads `GfxBobId`, construction layers, doors and animation-overlay frame references from `houses.ini`/`houses.cif`. It writes an editable `preview.palettes.json` in the output directory, selecting the first common configured palette variant per frame. The Viking mill receives its own `houseMiller01` palette, rather than the general house palette. Stored frames absent from the house configuration use the first configured house palette as an explicitly reported preview fallback. The map's `Default` and `Ranges` can be edited to select another game palette variant.
+
+## Shadow files
+
+Place `input_s.bmd` beside `input.bmd`, then drag **input.bmd** onto the EXE. The companion shadow BMD is exported under `shadows/`, with black `*.mask.png` coverage masks, a separate frame manifest and exact raw data under `shadows/indices/`. Dropping an `_s.bmd` directly also exports its masks.
+
+The `_s` file contains type-2 shadow coverage, not RGB palettes. It cannot correct sprite colors. A mask is exported with full alpha to show coverage; the game darkens the existing background instead of storing a fixed RGBA shadow opacity. Masks retain their own IDs and signed offsets in the manifest, and sparse/missing frames are preserved. They are deliberately not composited onto same-numbered artwork automatically. Invalid optional shadow files produce a warning while the artwork export remains available.
 
 ## Commands
 
@@ -127,6 +135,6 @@ dotnet build C2_BMD_to_sprites.csproj -c Release
 
 PNG support uses **StbImageSharp 2.30.16** and **StbImageWriteSharp 1.16.7**, small C# ports of stb with no native binaries, registration or license keys. ImageSharp and its build-time license check have been removed. See [third-party notices](THIRD_PARTY_NOTICES.md) for upstream projects and licenses. Straight RGBA bytes preserve hidden RGB under alpha zero; there is no automatic color-profile conversion. The importer checks PNG dimensions/chunk boundaries and rejects APNG and duplicate headers before decoding.
 
-The standard Release build succeeds with **zero warnings and errors**. Fifteen local regression groups pass, including drag-and-drop EXE invocation, output folder collisions, palette sidecars, installed INI/CIF palette lookup, indexed PNG/tRNS, 16-bit, Sub filtering, Adam7 interlacing and exact GUI PNG round trips. The automatically colored export of the installed `cr_hum_body_00.bmd` also encodes back byte-identically.
+The standard Release build succeeds with **zero warnings and errors**. Seventeen local regression groups pass, including per-frame house palettes, adjacent sparse shadows, organized raw imports, drag-and-drop EXE invocation, output folder collisions, installed INI/CIF palette lookup and PNG compatibility. The automatically colored exports of the installed `cr_hum_body_00.bmd`, all four Viking house BMDs and the Viking shadow manager encode back byte-identically.
 
 Documentation and verification scripts under `docs/` and `tools/` are kept locally and ignored by Git.

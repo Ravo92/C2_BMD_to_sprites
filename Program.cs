@@ -5,7 +5,7 @@ namespace C2_BMD_to_sprites;
 
 internal static class Program
 {
-    private const string DragDropUsage = "Drag a .bmd file onto this EXE, or run:\n  C2_BMD_to_sprites.exe <input.bmd>\nCreates <name>_sprites in the current working directory (then _2, _3, ...).\nColored previews use an adjacent <name>.palettes.json / <name>.pcx,\nthen palette assignments from an installed matching Cultures game.\nCULTURES_GAME_DIR can select a game installation explicitly.\nLossless *.indices.png files are always retained; colored sprites are *.png.\n\n";
+    private const string DragDropUsage = "Drag a .bmd file onto this EXE, or run:\n  C2_BMD_to_sprites.exe <input.bmd>\nCreates <name>_sprites in the current working directory (then _2, _3, ...).\nColored previews use an adjacent <name>.palettes.json / <name>.pcx,\nthen palette assignments from an installed matching Cultures game.\nCULTURES_GAME_DIR can select a game installation explicitly.\nColored sprites are *.png; their lossless index data is under indices/.\nAn adjacent <name>_s.bmd is exported separately under shadows/.\n\n";
     private const string Usage = "Commands:\n  decode <input.bmd> <frames-dir> [palette-source] [logical.bmd]\n  encode <template.bmd> <frames-dir> <output.bmd> [palette-source] [logical.bmd] [--optimize] [--id-order] [--force]\n  build <frames.json> <output.bmd> [palette-source] [--preview] [--optimize] [--id-order] [--force]\n  repack <input.bmd> <output.bmd> [--optimize] [--id-order] [--force]\n  rewrite <input.bmd> <output.bmd> [--force]\n  probe <input.bmd> [--optimize] [--id-order]\n  compare <original.bmd> <candidate.bmd>\nPalette source: single PCX, JSON map or legacy GUI palette directory.\nWithout a palette source (or with -) decode/encode uses lossless *.indices.png.\nDecode also exports an editable *.frames.json manifest. Build uses raw images by default.\n--preview imports colored images using the manifest palette source or an explicit override.\n--optimize enables the Mac generator's pixel-stream and row-table reuse candidate.";
 
     private static int Main(string[] args)
@@ -97,15 +97,20 @@ internal static class Program
         string? palette = File.Exists(paletteBase + ".palettes.json") ? paletteBase + ".palettes.json" : File.Exists(paletteBase + ".pcx") ? paletteBase + ".pcx" : null;
         if (palette is null)
         {
-            try { palette = CulturesPaletteDiscovery.Find(inputPath); }
+            try { palette = CulturesPaletteDiscovery.Find(inputPath, Path.Combine(output, "preview.palettes.json")); }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or OverflowException)
             {
                 Console.Error.WriteLine($"Automatic palette discovery failed: {ex.Message}");
             }
         }
-        BmdConverter.Export(inputPath, output, palette, Path.GetFileName(inputPath));
+        BmdConverter.Export(inputPath, output, palette, Path.GetFileName(inputPath), palette is not null || name.EndsWith("_s", StringComparison.OrdinalIgnoreCase) ? "indices" : null);
         Console.WriteLine($"Frames exported to: {output}");
         Console.WriteLine(palette is null ? "No palette found; exported lossless index PNGs. Add a PCX/palette-map sidecar for colored previews." : $"Colored previews use: {palette}");
+        try { BmdShadowExporter.ExportAdjacent(inputPath, output); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException or OverflowException)
+        {
+            Console.Error.WriteLine($"Artwork exported, but shadow export failed: {ex.Message}");
+        }
     }
 
     private static void WriteOutput(string output, byte[] bytes, bool force)

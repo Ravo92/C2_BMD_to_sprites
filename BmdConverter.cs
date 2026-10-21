@@ -6,10 +6,11 @@ namespace C2_BMD_to_sprites;
 
 internal static class BmdConverter
 {
-    internal static void Export(string inputPath, string outputDirectory, string? paletteSource, string logicalName)
+    internal static void Export(string inputPath, string outputDirectory, string? paletteSource, string logicalName, string? rawSubdirectory = null)
     {
         BmdFile file = BmdReader.Read(File.ReadAllBytes(inputPath));
         BmdProject project = BmdProject.FromFile(file, logicalName, paletteSource);
+        if (rawSubdirectory is not null) foreach (BmdProjectFrame entry in project.Frames) if (entry.RawImage is not null) entry.RawImage = Path.Combine(rawSubdirectory, entry.RawImage);
         BmdPaletteSource? palettes = paletteSource is null ? null : new(paletteSource);
         string manifestPath = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(logicalName) + ".frames.json");
         // Preflight all collisions and palette assignments before writing the first PNG.
@@ -24,6 +25,7 @@ internal static class BmdConverter
             palettes!.Resolve(logicalName, unchecked(file.Header.FirstBobId + (uint)i));
         }
         Directory.CreateDirectory(outputDirectory);
+        if (rawSubdirectory is not null && project.Frames.Any(f => f.RawImage is not null)) Directory.CreateDirectory(Path.Combine(outputDirectory, rawSubdirectory));
         for (int i = 0; i < file.Frames.Length; i++)
         {
             BmdProjectFrame entry = project.Frames[i];
@@ -51,6 +53,7 @@ internal static class BmdConverter
             if (frame.Width == 0 || frame.Height == 0) return new BmdFramePixels((int)frame.Width, (int)frame.Height);
             string suffix = palettes is null ? ".indices.png" : ".png";
             string path = Path.Combine(framesDirectory, BmdProject.FrameStem(logicalName, frameIndex) + suffix);
+            if (palettes is null && !File.Exists(path)) path = Path.Combine(framesDirectory, "indices", BmdProject.FrameStem(logicalName, frameIndex) + suffix);
             Rgba32[]? palette = palettes?.Resolve(logicalName, unchecked(template.Header.FirstBobId + (uint)frameIndex));
             BmdFramePixels? original = palettes is null ? null : BmdPixelDecoder.Decode(template, frame);
             return BmdPngCodec.Import(path, frame, palette, original);
