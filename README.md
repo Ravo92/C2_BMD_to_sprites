@@ -8,7 +8,11 @@ Drag a single `.bmd` file onto `C2_BMD_to_sprites.exe`. It immediately exports t
 
 The equivalent command is `C2_BMD_to_sprites.exe "input.bmd"`. No output path or `decode` argument is needed.
 
-For automatic colored previews, place `input.palettes.json` or `input.pcx` beside `input.bmd`; the JSON map takes precedence. Without a sidecar, the converter exports exact `*.indices.png` files. BMD files do not contain their RGB palette, so colored previews require that external information. Existing explicit `decode`/`encode` commands remain available.
+Colored sprites are named `input_000.png`; `input_000.indices.png` stores numeric indices and is not intended as a colored picture.
+
+Drag-and-drop checks `input.palettes.json`, then `input.pcx`, beside the BMD. Without these sidecars it reads palette assignments from a containing Cultures installation or a matching installed Steam edition. For copied BMDs, the installed source must match by SHA-256 before its configuration is used. `CULTURES_GAME_DIR` can explicitly select a game folder, including non-Steam installations. No game data is bundled or modified.
+
+Automatic game lookup currently covers human body/head managers with one unambiguous base palette, and the known GUI window rules. `cr_hum_body_00.bmd` resolves to `test_human_00.pcx` through the installed INI/CIF configuration. This produces the base artwork colors; in-game random clothing, skin and player-color patches can vary and are not inferred from BMD pixels. Multi-palette managers still require an explicit JSON map. If no assignment is found, the converter retains lossless index PNGs and reports that a palette is needed. Existing explicit `decode`/`encode` commands remain available.
 
 ## Commands
 
@@ -109,21 +113,20 @@ BMD output must differ from the input/template/manifest. Existing outputs requir
 
 ## Confirmed results
 
-On 2026-10-06, independent decode/repack matched **206 / 206 installed BMDs byte for byte** (133,294,533 bytes; 267,386 frame records, including nine empty managers). Types 0/1/2/3/4 are represented. Both colored-preview and raw-index PNG round trips matched the 193-frame GUI window BMD exactly. See [the audit](docs/BMD_ALGORITHM_AUDIT.md), [per-file hashes](docs/BMD_CORPUS_AUDIT.csv) and [format notes](docs/BMD_FORMAT.md).
+On 2026-10-06, independent decode/repack matched **206 / 206 installed BMDs byte for byte** (133,294,533 bytes; 267,386 frame records, including nine empty managers). Types 0/1/2/3/4 are represented. Both colored-preview and raw-index PNG round trips matched the 193-frame GUI window BMD exactly.
 
 This confirms the packing/serialization profile on that corpus with template metadata and recovered creation order. It does not prove how the original art tool quantized arbitrary source artwork or chose its initial anchors/crop rectangles.
 
-On 2026-10-21, the refactored code regenerated **205 / 205 currently installed BMDs byte for byte** (132,357,458 bytes; 267,193 frame records). The historical extra 193-frame GUI copy is absent from this corpus. Raw-manifest, preview-manifest and colored-template PNG round trips of the installed GUI also match exactly. Twelve regression groups cover boundaries, malformed data, palettes and new-manager creation. See [the refactor verification](docs/REFACTOR_2026-10-21.md).
+On 2026-10-21, the refactored code regenerated **205 / 205 currently installed BMDs byte for byte** (132,357,458 bytes; 267,193 frame records). The historical extra 193-frame GUI copy is absent from this corpus. Raw-manifest, preview-manifest and colored-template PNG round trips of the installed GUI also match exactly. Local regression checks cover boundaries, malformed data, palettes and new-manager creation.
 
-Build and run the independent regression checks:
+Build:
 
 ```powershell
 dotnet build C2_BMD_to_sprites.csproj -c Release
-python tools/verify_codec.py bin/Release/net10.0-windows/C2_BMD_to_sprites.dll
-# Optional read-only corpus and GUI PNG checks:
-python tools/verify_codec.py bin/Release/net10.0-windows/C2_BMD_to_sprites.dll --corpus <game-data-dir> --gui-bmd <ls_gui_window.bmd> --gui-palettes <gui-palettes-dir>
 ```
 
 PNG support uses **StbImageSharp 2.30.16** and **StbImageWriteSharp 1.16.7**, small C# ports of stb with no native binaries, registration or license keys. ImageSharp and its build-time license check have been removed. See [third-party notices](THIRD_PARTY_NOTICES.md) for upstream projects and licenses. Straight RGBA bytes preserve hidden RGB under alpha zero; there is no automatic color-profile conversion. The importer checks PNG dimensions/chunk boundaries and rejects APNG and duplicate headers before decoding.
 
-After the dependency replacement, the standard Release build succeeds with **zero warnings and errors**. Fourteen regression groups pass, including drag-and-drop EXE invocation, output folder collisions, palette sidecars, indexed PNG/tRNS, 16-bit, Sub filtering, Adam7 interlacing and exact GUI PNG round trips.
+The standard Release build succeeds with **zero warnings and errors**. Fifteen local regression groups pass, including drag-and-drop EXE invocation, output folder collisions, palette sidecars, installed INI/CIF palette lookup, indexed PNG/tRNS, 16-bit, Sub filtering, Adam7 interlacing and exact GUI PNG round trips. The automatically colored export of the installed `cr_hum_body_00.bmd` also encodes back byte-identically.
+
+Documentation and verification scripts under `docs/` and `tools/` are kept locally and ignored by Git.
