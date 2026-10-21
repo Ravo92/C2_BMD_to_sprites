@@ -399,3 +399,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Local documentation and verification tools are not part of the repository.
+/docs/
+/tools/
