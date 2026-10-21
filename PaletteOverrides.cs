@@ -15,7 +15,7 @@ internal sealed class PaletteOverrides
 
     internal void AddSingle(string fileName, int id, PaletteKind palette) => AddRange(fileName, id, id, palette);
 
-    internal bool TryResolve(string fileName, int bobId, out PaletteKind palette)
+    internal bool TryResolve(string fileName, uint bobId, out PaletteKind palette)
     {
         palette = PaletteKind.BgNormal;
         if (!rulesByFile.TryGetValue(Path.GetFileName(fileName), out List<OverrideRule>? rules)) return false;

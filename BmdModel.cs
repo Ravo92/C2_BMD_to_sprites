@@ -31,10 +31,15 @@ internal sealed class BmdFramePixels
 
     internal BmdFramePixels(int width, int height)
     {
-        if (width < 0 || height < 0 || width > 8192 || height > 8192 || (long)width * height > 16_777_216) throw new InvalidDataException($"Unsupported frame dimensions {width}x{height}.");
+        ValidateDimensions(width, height);
         Width = width;
         Height = height;
         Values = new ushort[checked(width * height)];
         Occupied = new bool[Values.Length];
+    }
+
+    internal static void ValidateDimensions(long width, long height)
+    {
+        if (width < 0 || height < 0 || width > 8192 || height > 8192 || width * height > 16_777_216) throw new InvalidDataException($"Unsupported frame dimensions {width}x{height}.");
     }
 }

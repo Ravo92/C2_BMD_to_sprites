@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using C2_BMD_to_sprites.Decoders;
 
 namespace C2_BMD_to_sprites;
 
@@ -29,10 +30,13 @@ internal static class BmdReader
         BmdRow[] rows = new BmdRow[header.LineCount];
         for (int i = 0; i < rows.Length; i++) rows[i] = new(rowsReader.ReadU32());
         BmdFile result = new(header, frames, sections[1], rows, versions, r.ReadRemaining());
-        foreach (BmdFrame frame in frames)
+        for (int i = 0; i < frames.Length; i++)
         {
-            if (frame.Type == 0) continue;
-            if ((ulong)frame.FirstRowIndex + frame.Height > (ulong)rows.Length) throw new InvalidDataException("Frame row index range is outside the line table.");
+            try { BmdPixelDecoder.Validate(result, frames[i]); }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException)
+            {
+                throw new InvalidDataException($"Frame {i}: {ex.Message}", ex);
+            }
         }
         foreach (BmdRow row in rows) if (!row.IsEmpty && row.PixelStreamOffset >= result.Pixels.Length) throw new InvalidDataException("Nonempty row points outside the pixel stream.");
         return result;

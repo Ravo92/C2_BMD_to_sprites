@@ -17,9 +17,9 @@ internal static class BmdComparison
             differing++;
         }
         if (first < 0 && originalBytes.Length != candidateBytes.Length) first = Math.Min(originalBytes.Length, candidateBytes.Length);
-        bool pixelsEqual = original.Frames.Length == candidate.Frames.Length;
+        bool pixelsEqual = true;
         int firstDifferentFrame = -1;
-        for (int i = 0; pixelsEqual && i < original.Frames.Length; i++)
+        for (int i = 0; pixelsEqual && i < Math.Min(original.Frames.Length, candidate.Frames.Length); i++)
         {
             BmdFrame a = original.Frames[i], b = candidate.Frames[i];
             pixelsEqual = a.Type == b.Type && a.XOffset == b.XOffset && a.YOffset == b.YOffset && a.Width == b.Width && a.Height == b.Height;
@@ -29,6 +29,11 @@ internal static class BmdComparison
                 pixelsEqual = left.Values.AsSpan().SequenceEqual(right.Values) && left.Occupied.AsSpan().SequenceEqual(right.Occupied);
             }
             if (!pixelsEqual) firstDifferentFrame = i;
+        }
+        if (pixelsEqual && original.Frames.Length != candidate.Frames.Length)
+        {
+            pixelsEqual = false;
+            firstDifferentFrame = Math.Min(original.Frames.Length, candidate.Frames.Length);
         }
         return new
         {

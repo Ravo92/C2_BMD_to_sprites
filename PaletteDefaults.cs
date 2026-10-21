@@ -1,5 +1,3 @@
-using SixLabors.ImageSharp.PixelFormats;
-
 namespace C2_BMD_to_sprites;
 
 internal static class PaletteDefaults

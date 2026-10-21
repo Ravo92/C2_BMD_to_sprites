@@ -24,7 +24,7 @@ The installed corpus has **zero headers with a nonzero reused-row counter**; all
 
 The algorithm now reproduces the stored Windows corpus from decoded values plus original metadata and creation order. It does not reconstruct the original uncropped artwork, choose palettes/anchors for arbitrary PNGs, prove the art tool's quantizer, or recover lost creation history from optimized row reuse. The current PNG importer deliberately requires a template and the same frame dimensions. The inherited GUI palette override table is a separate policy, not stored in BMD files.
 
-Next: explicit editable frame manifest / new-frame anchor and crop handling; original optimized fixtures if available. Keep shader previews separate from exact raw index data and retain per-file byte comparisons when extending the generator.
+The 2026-10-21 refactor adds an editable frame manifest, new-manager generation and explicit palettes; see [the follow-up verification](REFACTOR_2026-10-21.md). Automatic crop/anchor inference and original optimized fixtures remain outside the established profile. Keep shader previews separate from exact raw index data and retain per-file byte comparisons when extending the generator.
 
 ## Separate game continuation
 

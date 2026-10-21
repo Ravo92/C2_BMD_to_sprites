@@ -1,14 +1,12 @@
-using SixLabors.ImageSharp.PixelFormats;
-
 namespace C2_BMD_to_sprites
 {
     internal static class GuiPaletteRules
     {
         private static readonly PaletteOverrides Overrides = BuildDefaultOverrides();
 
-        internal static Rgba32[] Resolve(string fileName, int bobId, GuiPaletteSet palettes)
+        internal static Rgba32[] Resolve(string fileName, uint bobId, GuiPaletteSet palettes)
         {
-            Overrides.TryResolve(Path.GetFileName(fileName), bobId, out PaletteKind kind);
+            if (!Overrides.TryResolve(Path.GetFileName(fileName), bobId, out PaletteKind kind)) throw new InvalidDataException($"No GUI palette rule for {fileName}, bob ID {bobId}. Supply a PCX palette or a JSON palette map.");
             return kind switch
             {
                 PaletteKind.Frame => palettes.Frame,
